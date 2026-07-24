@@ -5,24 +5,27 @@ import * as THREE from 'three';
 import { ChevronLeft, ChevronRight, Maximize2, Sparkles, X, Edit3 } from 'lucide-react';
 import { useVault } from '../../context/VaultContext';
 import { useTheme } from '../../context/ThemeContext';
+import { useDeviceAdapter } from '../../hooks/useDeviceAdapter';
 import { ThemeEnvironment } from './ThemeEnvironment';
 import type { MemoryNode, PhotoBranch } from '../../types';
 
-// Camera controller for smooth camera flyTo interpolation
+// Adaptive Camera Controller for Desktop, Tablet & Mobile Auto-Focus Focus
 const CameraController: React.FC = () => {
   const { targetCameraPosition } = useVault();
   const { camera } = useThree();
+  const graphics = useDeviceAdapter();
   const targetPos = useRef<THREE.Vector3 | null>(null);
 
   React.useEffect(() => {
     if (targetCameraPosition) {
+      const zOffset = graphics.isMobile ? 10 : 7.5;
       targetPos.current = new THREE.Vector3(
         targetCameraPosition[0],
         targetCameraPosition[1],
-        targetCameraPosition[2] + 7.5
+        targetCameraPosition[2] + zOffset
       );
     }
-  }, [targetCameraPosition]);
+  }, [targetCameraPosition, graphics.isMobile]);
 
   useFrame((_, delta) => {
     if (targetPos.current) {
@@ -36,7 +39,7 @@ const CameraController: React.FC = () => {
   return null;
 };
 
-// Radial Photo Branch Spoke Component (Clean spoke lines from Node -> Photo)
+// Radial Photo Branch Spoke Component
 const RadialPhotoBranch: React.FC<{
   branch: PhotoBranch;
   index: number;
@@ -46,12 +49,12 @@ const RadialPhotoBranch: React.FC<{
 }> = ({ branch, index, totalBranches, nodeColor, onSelectPhoto }) => {
   const [hovered, setHovered] = useState(false);
   const { currentTheme } = useTheme();
+  const graphics = useDeviceAdapter();
 
-  // Calculate radial position of photo badge relative to node center [0,0,0]
   const { targetPos, linePoints } = useMemo(() => {
     const angle = (index / (totalBranches || 1)) * Math.PI * 2;
     const elevationAngle = (index % 2 === 0 ? 0.35 : -0.35);
-    const radius = 4.2;
+    const radius = graphics.isMobile ? 3.2 : 4.2;
 
     const bx = Math.cos(angle) * radius * Math.cos(elevationAngle);
     const by = Math.sin(elevationAngle) * (radius * 0.85);
@@ -60,11 +63,10 @@ const RadialPhotoBranch: React.FC<{
     const pos: [number, number, number] = [bx, by, bz];
     const points = [new THREE.Vector3(0, 0, 0), new THREE.Vector3(bx, by, bz)];
     return { targetPos: pos, linePoints: points };
-  }, [index, totalBranches]);
+  }, [index, totalBranches, graphics.isMobile]);
 
   return (
     <group>
-      {/* Radiating Spoke Line */}
       <line>
         <bufferGeometry
           attach="geometry"
@@ -79,9 +81,8 @@ const RadialPhotoBranch: React.FC<{
         />
       </line>
 
-      {/* 3D Photo Card Badge */}
       <Html
-        distanceFactor={13}
+        distanceFactor={graphics.isMobile ? 15 : 13}
         position={targetPos}
         center
         className="pointer-events-auto select-none"
@@ -99,7 +100,7 @@ const RadialPhotoBranch: React.FC<{
               : 'bg-slate-950/80 border-white/20 text-slate-200 hover:border-white/40 shadow-lg'
           }`}
         >
-          <div className="w-10 h-10 rounded-xl overflow-hidden border border-white/20 shrink-0 bg-slate-900 shadow-inner">
+          <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl overflow-hidden border border-white/20 shrink-0 bg-slate-900 shadow-inner">
             <img
               src={branch.thumbnailUrl || branch.url}
               alt={branch.title}
@@ -107,9 +108,9 @@ const RadialPhotoBranch: React.FC<{
             />
           </div>
 
-          <div className="pr-2 max-w-[140px] truncate">
-            <p className="text-[11px] font-bold truncate leading-tight">{branch.title}</p>
-            <span className="text-[9px] font-mono text-cyan-300 opacity-80">
+          <div className="pr-2 max-w-[110px] sm:max-w-[140px] truncate">
+            <p className="text-[10px] sm:text-[11px] font-bold truncate leading-tight">{branch.title}</p>
+            <span className="text-[8px] sm:text-[9px] font-mono text-cyan-300 opacity-80">
               #{index + 1} • {branch.aiTags[0] || 'Photo'}
             </span>
           </div>
@@ -127,6 +128,7 @@ const NodePhotoSwiperPopup: React.FC<{
   onEditNode: (node: MemoryNode) => void;
 }> = ({ node, onClose, onSelectPhoto, onEditNode }) => {
   const [photoIndex, setPhotoIndex] = useState(0);
+  const graphics = useDeviceAdapter();
 
   if (!node.branches || node.branches.length === 0) return null;
 
@@ -143,13 +145,12 @@ const NodePhotoSwiperPopup: React.FC<{
   };
 
   return (
-    <Html distanceFactor={11} position={[0, 2.6, 0]} center className="pointer-events-auto select-none z-50">
-      <div className="w-72 p-3.5 rounded-3xl bg-slate-950/95 border-2 border-cyan-400 backdrop-blur-2xl shadow-[0_0_35px_rgba(0,240,255,0.4)] text-white space-y-2.5 animate-float">
-        {/* Card Header with Rename Button */}
+    <Html distanceFactor={graphics.isMobile ? 13 : 11} position={[0, 2.6, 0]} center className="pointer-events-auto select-none z-50">
+      <div className="w-64 sm:w-72 p-3 sm:p-3.5 rounded-3xl bg-slate-950/95 border-2 border-cyan-400 backdrop-blur-2xl shadow-[0_0_35px_rgba(0,240,255,0.4)] text-white space-y-2.5 animate-float">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-1.5 text-xs font-bold text-cyan-300">
             <Sparkles className="w-3.5 h-3.5 text-purple-400" />
-            <span className="truncate max-w-[130px]">{node.title}</span>
+            <span className="truncate max-w-[120px]">{node.title}</span>
             <button
               onClick={(e) => {
                 e.stopPropagation();
@@ -172,8 +173,7 @@ const NodePhotoSwiperPopup: React.FC<{
           </button>
         </div>
 
-        {/* Photo Container with Swipe Next/Prev Arrows */}
-        <div className="relative w-full h-44 rounded-2xl overflow-hidden border border-white/20 group bg-slate-900 flex items-center justify-center">
+        <div className="relative w-full h-36 sm:h-44 rounded-2xl overflow-hidden border border-white/20 group bg-slate-900 flex items-center justify-center">
           <img
             src={currentPhoto.url || currentPhoto.thumbnailUrl}
             alt={currentPhoto.title}
@@ -201,9 +201,8 @@ const NodePhotoSwiperPopup: React.FC<{
           </div>
         </div>
 
-        {/* Photo Title & Lightbox Action */}
         <div className="flex items-center justify-between text-xs pt-1">
-          <p className="font-semibold text-slate-200 truncate pr-2 max-w-[170px]">{currentPhoto.title}</p>
+          <p className="font-semibold text-slate-200 truncate pr-2 max-w-[140px]">{currentPhoto.title}</p>
           <button
             onClick={(e) => {
               e.stopPropagation();
@@ -225,11 +224,15 @@ const GraphNodeMesh: React.FC<{
   isSelected: boolean;
   onSelect: (node: MemoryNode) => void;
   onEditNode: (node: MemoryNode) => void;
-}> = ({ node, isSelected, onSelect, onEditNode }) => {
+  onLongPressNode: (node: MemoryNode) => void;
+  onDoubleTapNode: (node: MemoryNode) => void;
+}> = ({ node, isSelected, onSelect, onEditNode, onLongPressNode, onDoubleTapNode }) => {
   const meshRef = useRef<THREE.Mesh>(null!);
   const [hovered, setHovered] = useState(false);
   const { currentTheme } = useTheme();
+  const graphics = useDeviceAdapter();
   const { selectPhoto, selectNode } = useVault();
+  const touchTimer = useRef<any>(null);
 
   useFrame((_, delta) => {
     if (meshRef.current) {
@@ -274,25 +277,39 @@ const GraphNodeMesh: React.FC<{
 
   return (
     <group position={node.position}>
-      {/* Central Node Sphere */}
       <mesh
         ref={meshRef}
         onClick={(e) => {
           e.stopPropagation();
           onSelect(node);
         }}
+        onPointerDown={(e) => {
+          e.stopPropagation();
+          touchTimer.current = setTimeout(() => {
+            onLongPressNode(node);
+          }, 500);
+        }}
+        onPointerUp={() => {
+          if (touchTimer.current) clearTimeout(touchTimer.current);
+        }}
+        onDoubleClick={(e) => {
+          e.stopPropagation();
+          onDoubleTapNode(node);
+        }}
         onPointerOver={(e) => {
           e.stopPropagation();
           setHovered(true);
         }}
-        onPointerOut={() => setHovered(false)}
+        onPointerOut={() => {
+          if (touchTimer.current) clearTimeout(touchTimer.current);
+          setHovered(false);
+        }}
         scale={isSelected ? 1.4 : (hovered ? 1.25 : 1)}
       >
         {renderGeometry()}
         {renderMaterial()}
       </mesh>
 
-      {/* Pulsating Outer Halo Shell */}
       <mesh scale={isSelected ? 1.8 : 1.45}>
         <sphereGeometry args={[1.0, 16, 16]} />
         <meshBasicMaterial
@@ -303,11 +320,10 @@ const GraphNodeMesh: React.FC<{
         />
       </mesh>
 
-      {/* Node Title Badge */}
-      <Html distanceFactor={13} position={[0, -1.6, 0]} center>
+      <Html distanceFactor={graphics.isMobile ? 15 : 13} position={[0, -1.6, 0]} center>
         <div
           onClick={() => onSelect(node)}
-          className={`px-3.5 py-1.5 rounded-2xl cursor-pointer transition-all duration-300 select-none whitespace-nowrap text-xs font-bold flex items-center gap-2 border ${
+          className={`px-3 sm:px-3.5 py-1.5 rounded-2xl cursor-pointer transition-all duration-300 select-none whitespace-nowrap text-xs font-bold flex items-center gap-2 border ${
             isSelected
               ? 'bg-cyan-500/30 border-cyan-400 text-cyan-100 shadow-[0_0_20px_rgba(0,240,255,0.6)] backdrop-blur-xl scale-110'
               : hovered
@@ -321,7 +337,6 @@ const GraphNodeMesh: React.FC<{
         </div>
       </Html>
 
-      {/* Node Touch/Click Interactive Swiper Photo Popup */}
       {isSelected && (
         <NodePhotoSwiperPopup
           node={node}
@@ -331,7 +346,6 @@ const GraphNodeMesh: React.FC<{
         />
       )}
 
-      {/* 360-Degree Radiating Photo Spoke Branches */}
       {node.branches.map((branch: PhotoBranch, idx: number) => (
         <RadialPhotoBranch
           key={branch.id}
@@ -444,15 +458,19 @@ const DistinctNodeBeams: React.FC<{ nodes: MemoryNode[] }> = ({ nodes }) => {
 
 export const MemoryGraph3D: React.FC<{
   onEditNode?: (node: MemoryNode) => void;
-}> = ({ onEditNode }) => {
+  onLongPressNode?: (node: MemoryNode) => void;
+  onDoubleTapNode?: (node: MemoryNode) => void;
+}> = ({ onEditNode, onLongPressNode, onDoubleTapNode }) => {
   const { nodes, selectedNode, selectNode, entranceState } = useVault();
+  const graphics = useDeviceAdapter();
   const isAuthPage = entranceState.stage === 'auth';
 
   return (
     <div className="w-full h-full relative">
       <Canvas
-        camera={{ position: [0, 4, 20], fov: 55 }}
-        gl={{ antialias: true, alpha: true }}
+        camera={{ position: [0, 4, graphics.isMobile ? 24 : 20], fov: graphics.fov }}
+        gl={{ antialias: graphics.antialias, alpha: true }}
+        dpr={graphics.pixelRatio}
       >
         <ThemeEnvironment />
 
@@ -462,8 +480,9 @@ export const MemoryGraph3D: React.FC<{
             <OrbitControls
               enableDamping
               dampingFactor={0.05}
-              maxDistance={50}
+              maxDistance={graphics.isMobile ? 40 : 50}
               minDistance={3}
+              touches={{ ONE: THREE.TOUCH.ROTATE, TWO: THREE.TOUCH.DOLLY_PAN }}
             />
             
             <DistinctNodeBeams nodes={nodes} />
@@ -475,6 +494,8 @@ export const MemoryGraph3D: React.FC<{
                 isSelected={selectedNode?.id === node.id}
                 onSelect={selectNode}
                 onEditNode={(n) => onEditNode && onEditNode(n)}
+                onLongPressNode={(n) => onLongPressNode && onLongPressNode(n)}
+                onDoubleTapNode={(n) => onDoubleTapNode && onDoubleTapNode(n)}
               />
             ))}
           </>

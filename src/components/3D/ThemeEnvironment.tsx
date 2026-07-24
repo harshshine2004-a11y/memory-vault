@@ -2,13 +2,14 @@ import React, { useRef, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { useTheme } from '../../context/ThemeContext';
+import { useDeviceAdapter } from '../../hooks/useDeviceAdapter';
 
 // Animated Swimming Fish Meshes for Underwater Theme
-const SwimmingFishGroup: React.FC = () => {
+const SwimmingFishGroup: React.FC<{ count: number }> = ({ count }) => {
   const groupRef = useRef<THREE.Group>(null!);
 
   const fishData = useMemo(() => {
-    return [...Array(12)].map((_, i) => ({
+    return [...Array(count)].map((_, i) => ({
       initialPos: new THREE.Vector3(
         (Math.random() - 0.5) * 18,
         (Math.random() - 0.5) * 10,
@@ -18,7 +19,7 @@ const SwimmingFishGroup: React.FC = () => {
       scale: 0.2 + Math.random() * 0.2,
       phase: i * 0.5
     }));
-  }, []);
+  }, [count]);
 
   useFrame((state) => {
     if (!groupRef.current) return;
@@ -53,11 +54,11 @@ const SwimmingFishGroup: React.FC = () => {
 };
 
 // Animated Fluttering Butterflies for Garden Theme
-const FlutteringButterfliesGroup: React.FC = () => {
+const FlutteringButterfliesGroup: React.FC<{ count: number }> = ({ count }) => {
   const groupRef = useRef<THREE.Group>(null!);
 
   const butterflyData = useMemo(() => {
-    return [...Array(14)].map((_, i) => ({
+    return [...Array(count)].map((_, i) => ({
       initialPos: new THREE.Vector3(
         (Math.random() - 0.5) * 16,
         (Math.random() - 0.5) * 8 + 1,
@@ -66,7 +67,7 @@ const FlutteringButterfliesGroup: React.FC = () => {
       speed: 1.2 + Math.random() * 0.8,
       color: ['#ff7700', '#ff00aa', '#00ffaa', '#ffcc00'][i % 4]
     }));
-  }, []);
+  }, [count]);
 
   useFrame((state) => {
     if (!groupRef.current) return;
@@ -126,11 +127,11 @@ const GlowingSunCore: React.FC = () => {
 };
 
 // Floating Books with Glowing Runes for Ancient Library Theme
-const FloatingLibraryBooks: React.FC = () => {
+const FloatingLibraryBooks: React.FC<{ count: number }> = ({ count }) => {
   const groupRef = useRef<THREE.Group>(null!);
 
   const bookData = useMemo(() => {
-    return [...Array(10)].map((_, i) => ({
+    return [...Array(count)].map((_, i) => ({
       initialPos: new THREE.Vector3(
         (Math.random() - 0.5) * 16,
         (Math.random() - 0.5) * 10,
@@ -139,7 +140,7 @@ const FloatingLibraryBooks: React.FC = () => {
       rotSpeed: 0.3 + Math.random() * 0.4,
       phase: i * 0.7
     }));
-  }, []);
+  }, [count]);
 
   useFrame((state) => {
     if (!groupRef.current) return;
@@ -176,10 +177,11 @@ const FloatingLibraryBooks: React.FC = () => {
 // Main 3D Theme World Renderer Component
 export const ThemeEnvironment: React.FC = () => {
   const { currentTheme } = useTheme();
+  const graphics = useDeviceAdapter();
   const particlesRef = useRef<THREE.Points>(null!);
 
   const particleGeometry = useMemo(() => {
-    const count = currentTheme.particleCount || 1800;
+    const count = graphics.particleCount;
     const positions = new Float32Array(count * 3);
 
     for (let i = 0; i < count * 3; i += 3) {
@@ -191,7 +193,7 @@ export const ThemeEnvironment: React.FC = () => {
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
     return geo;
-  }, [currentTheme]);
+  }, [graphics.particleCount]);
 
   useFrame((state) => {
     if (!particlesRef.current) return;
@@ -227,7 +229,7 @@ export const ThemeEnvironment: React.FC = () => {
 
       <points ref={particlesRef} geometry={particleGeometry}>
         <pointsMaterial
-          size={0.12}
+          size={graphics.isMobile ? 0.16 : 0.12}
           color={currentTheme.particleColor}
           transparent
           opacity={0.7}
@@ -235,10 +237,10 @@ export const ThemeEnvironment: React.FC = () => {
         />
       </points>
 
-      {currentTheme.id === 'abyssal_ocean' && <SwimmingFishGroup />}
-      {(currentTheme.id === 'garden' || currentTheme.id === 'rainforest') && <FlutteringButterfliesGroup />}
+      {currentTheme.id === 'abyssal_ocean' && <SwimmingFishGroup count={graphics.isMobile ? 5 : 12} />}
+      {(currentTheme.id === 'garden' || currentTheme.id === 'rainforest') && <FlutteringButterfliesGroup count={graphics.isMobile ? 6 : 14} />}
       {currentTheme.id === 'solar_system' && <GlowingSunCore />}
-      {currentTheme.id === 'ancient_library' && <FloatingLibraryBooks />}
+      {currentTheme.id === 'ancient_library' && <FloatingLibraryBooks count={graphics.isMobile ? 4 : 10} />}
     </>
   );
 };
