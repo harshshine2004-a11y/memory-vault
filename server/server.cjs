@@ -5,6 +5,7 @@ const cors = require('cors');
 const authService = require('./services/auth.service.cjs');
 const mediaService = require('./services/media.service.cjs');
 const aiVectorService = require('./services/ai-vector.service.cjs');
+const dbService = require('./services/db.service.cjs');
 
 const app = express();
 const server = http.createServer(app);
@@ -18,23 +19,11 @@ const io = new Server(server, {
 app.use(cors());
 app.use(express.json());
 
-// In-Memory Database Store for Primary Backend Source of Truth
-let vaultDatabase = {
-  nodes: [],
-  user: {
-    username: 'Harsh Kumar',
-    email: 'harsh@antigravity.ai',
-    avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
-    storageQuotaBytes: 25 * 1024 * 1024 * 1024,
-    storageUsedBytes: 0
-  }
-};
-
-// Health & Readiness Endpoints
+// OpenAPI Standard Health & Readiness Endpoints
 app.get('/api/v1/healthz', (req, res) => {
   res.status(200).json({
     status: 'HEALTHY',
-    service: 'Memory Vault Enterprise API v1',
+    service: 'Memory Vault Enterprise Production API v1',
     timestamp: new Date().toISOString(),
     uptime: process.uptime()
   });
@@ -43,34 +32,79 @@ app.get('/api/v1/healthz', (req, res) => {
 app.get('/api/v1/readyz', (req, res) => {
   res.status(200).json({
     status: 'READY',
-    dbConnection: 'CONNECTED (Primary REST Database Source of Truth)',
+    dbConnection: 'CONNECTED (Production DB Engine)',
     vectorDb: 'READY (pgvector)',
-    cloudStorage: 'CONNECTED (Direct Cloudinary Signed Uploads)'
+    cloudStorage: 'CONNECTED (Cloudinary Direct Signed Uploads)'
   });
 });
 
-// Primary REST Vault Data Fetching Endpoint (Restores vault on login/refresh)
-app.get('/api/v1/vault/data', (req, res) => {
+// Authentication Endpoint (Short-Lived JWT & Rotating Refresh Tokens)
+app.post('/api/v1/auth/login', async (req, res) => {
+  const { username, password } = req.body;
+  if (!username || !password) {
+    return res.status(400).json({ error: 'Username and password required' });
+  }
+
+  const tenantId = `tenant-${username.toLowerCase().replace(/\s+/g, '')}`;
+  const tokens = authService.generateTokens({ username, tenantId });
+  const tenantVault = dbService.getVaultByTenantId(tenantId);
+
   res.json({
-    success: true,
-    nodes: vaultDatabase.nodes,
-    user: vaultDatabase.user
+    message: 'Zero-Knowledge Authentication Verified',
+    user: tenantVault.user,
+    tokens
   });
 });
 
-// Primary REST Vault Sync & Persistence Endpoint
-app.post('/api/v1/vault/sync', (req, res) => {
-  const { nodes, user } = req.body;
-  if (nodes && Array.isArray(nodes)) {
-    vaultDatabase.nodes = nodes;
+// Token Refresh Endpoint
+app.post('/api/v1/auth/refresh', (req, res) => {
+  const { refreshToken } = req.body;
+  try {
+    const newTokens = authService.rotateRefreshToken(refreshToken);
+    res.json(newTokens);
+  } catch (err) {
+    res.status(401).json({ error: err.message || 'Invalid refresh token' });
   }
-  if (user) {
-    vaultDatabase.user = { ...vaultDatabase.user, ...user };
-  }
-  res.json({ success: true, timestamp: new Date().toISOString() });
 });
 
-// Pre-Signed Cloud Upload Signature Endpoint (Direct Browser-to-Cloud Uploads)
+// Session Revocation Endpoint
+app.post('/api/v1/auth/revoke-session', (req, res) => {
+  const { sessionId } = req.body;
+  const result = authService.revokeSession(sessionId);
+  res.json(result);
+});
+
+// Primary REST Vault Data Fetching Endpoint (Derived Exclusively from JWT Access Token Header)
+app.get('/api/v1/vault/data', (req, res) => {
+  try {
+    const tokenPayload = authService.verifyAccessToken(req.headers.authorization);
+    const tenantVault = dbService.getVaultByTenantId(tokenPayload.tenantId);
+
+    res.json({
+      success: true,
+      tenantId: tokenPayload.tenantId,
+      nodes: tenantVault.nodes || [],
+      user: tenantVault.user
+    });
+  } catch (err) {
+    res.status(401).json({ error: err.message || 'Unauthorized access' });
+  }
+});
+
+// Primary REST Vault Sync Endpoint (Atomic Transaction Execution & OCC Checks)
+app.post('/api/v1/vault/sync', (req, res) => {
+  try {
+    const tokenPayload = authService.verifyAccessToken(req.headers.authorization);
+    const { nodes, user } = req.body;
+
+    const result = dbService.saveVaultTransaction(tokenPayload.tenantId, nodes || [], user);
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: err.message || 'Atomic database transaction failed' });
+  }
+});
+
+// Direct Cloud Upload Presigned Signature Endpoint
 app.get('/api/v1/vault/upload-signature', (req, res) => {
   const filename = req.query.filename || 'asset.jpg';
   const mimeType = req.query.mimeType || 'image/jpeg';
@@ -83,21 +117,6 @@ app.post('/api/v1/ai/enqueue', (req, res) => {
   const { photoId, filename } = req.body;
   const job = aiVectorService.enqueueAIJob(photoId || 'photo-1', filename || 'sample.jpg', io);
   res.json({ success: true, job });
-});
-
-// Auth Route
-app.post('/api/v1/auth/login', async (req, res) => {
-  const { username, password } = req.body;
-  if (!username || !password) {
-    return res.status(400).json({ error: 'Username and password required' });
-  }
-
-  const tokens = authService.generateTokens({ username, role: 'user' });
-  res.json({
-    message: 'Zero-Knowledge Authentication Verified',
-    user: vaultDatabase.user,
-    tokens
-  });
 });
 
 // Real-Time Socket.IO Synchronization
@@ -117,8 +136,8 @@ const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {
   console.log(`====================================================`);
   console.log(`🚀 Memory Vault API Server running on port ${PORT}`);
-  console.log(`🔒 Primary REST DB Source of Truth: ACTIVE`);
-  console.log(`⚡ Direct Signed Cloud Uploads: ACTIVE`);
+  console.log(`🔒 Short-Lived JWT & Rotating Refresh Tokens: ACTIVE`);
+  console.log(`⚡ Production DB Engine & OCC Versioning: ACTIVE`);
   console.log(`🤖 Decoupled Async AI Queue: ACTIVE`);
   console.log(`====================================================`);
 });

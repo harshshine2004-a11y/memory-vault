@@ -22,6 +22,7 @@ interface VaultContextType {
   searchResults: { matchedNodeId: string; score: number; reason: string }[];
   targetCameraPosition: [number, number, number] | null;
   userMasterPassword: string;
+  accessToken: string | null;
   
   // Multi-Tenant & Vault Actions
   registerTenant: (username: string, email: string, password: string, tier?: 'starter' | 'pro' | 'enterprise') => boolean;
@@ -152,6 +153,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [searchResults, setSearchResults] = useState<{ matchedNodeId: string; score: number; reason: string }[]>([]);
   const [targetCameraPosition, setTargetCameraPosition] = useState<[number, number, number] | null>(null);
   const [isOffline, setIsOffline] = useState<boolean>(!navigator.onLine);
+  const [accessToken, setAccessToken] = useState<string | null>(() => localStorage.getItem('vault_access_token'));
 
   const [userMasterPassword, setUserMasterPassword] = useState<string>(() => {
     return localStorage.getItem('vault_master_passphrase') || 'VaultMaster#2026Secure!';
@@ -203,30 +205,8 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   ]);
 
-  // Load Primary Backend REST DB Vault Data on Launch with IndexedDB Fallback
+  // Online / Offline listener
   useEffect(() => {
-    const fetchVaultData = async () => {
-      try {
-        const response = await fetch('http://localhost:5000/api/v1/vault/data');
-        if (response.ok) {
-          const data = await response.json();
-          if (data.nodes && Array.isArray(data.nodes) && data.nodes.length > 0) {
-            setNodes(data.nodes);
-            VaultDB.saveNodes(data.nodes);
-          } else {
-            const cachedNodes = await VaultDB.loadNodes();
-            if (cachedNodes && cachedNodes.length > 0) setNodes(cachedNodes);
-          }
-          if (data.user) setUser(prev => ({ ...prev, ...data.user }));
-        }
-      } catch {
-        const cachedNodes = await VaultDB.loadNodes();
-        if (cachedNodes && cachedNodes.length > 0) setNodes(cachedNodes);
-      }
-    };
-
-    fetchVaultData();
-
     const handleOnline = () => setIsOffline(false);
     const handleOffline = () => setIsOffline(true);
 
@@ -241,19 +221,24 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     };
   }, []);
 
-  // Sync Node changes to Primary Backend REST DB & IndexedDB Cache
+  // Sync Node changes to Production REST Database via JWT Token & IndexedDB Cache
   useEffect(() => {
     VaultDB.saveNodes(nodes);
     PWAEngine.cacheVaultOffline(nodes);
 
-    fetch('http://localhost:5000/api/v1/vault/sync', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ nodes, user })
-    }).catch(() => {
-      // Sync fallback
-    });
-  }, [nodes, user]);
+    if (accessToken) {
+      fetch('http://localhost:5000/api/v1/vault/sync', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`
+        },
+        body: JSON.stringify({ nodes, user })
+      }).catch(() => {
+        // Sync fallback
+      });
+    }
+  }, [nodes, user, accessToken]);
 
   const updateUserProfile = (updates: Partial<UserProfile>) => {
     setUser(prev => {
@@ -318,6 +303,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setAuditLogs(prev => [newLog, ...prev]);
   };
 
+  // Post-Authentication Vault Rehydration Flow with Short-Lived JWT Token Scoping
   const login = async (password: string): Promise<boolean> => {
     try {
       if (password !== userMasterPassword) {
@@ -327,24 +313,59 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
       setEntranceState({ stage: 'decryption', progress: 10, decryptionLog: ['Authenticating tenant session...'] });
       
+      const authRes = await fetch('http://localhost:5000/api/v1/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: user.username, password })
+      });
+
+      let token = accessToken;
+      if (authRes.ok) {
+        const authData = await authRes.json();
+        token = authData.tokens?.accessToken;
+        if (token) {
+          setAccessToken(token);
+          localStorage.setItem('vault_access_token', token);
+        }
+      }
+
       const key = await SecurityEngine.deriveMasterKey(password);
       setZkMasterKey(key);
 
-      await new Promise(r => setTimeout(r, 600));
+      await new Promise(r => setTimeout(r, 400));
       setEntranceState(prev => ({
         ...prev,
         progress: 40,
         decryptionLog: [...prev.decryptionLog, 'Deriving AES-256-GCM Zero-Knowledge Key via PBKDF2...', 'Decrypting Tenant Vault...']
       }));
 
-      await new Promise(r => setTimeout(r, 700));
+      if (token) {
+        try {
+          const vaultRes = await fetch('http://localhost:5000/api/v1/vault/data', {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          if (vaultRes.ok) {
+            const vaultData = await vaultRes.json();
+            if (vaultData.nodes && Array.isArray(vaultData.nodes) && vaultData.nodes.length > 0) {
+              setNodes(vaultData.nodes);
+              VaultDB.saveNodes(vaultData.nodes);
+            }
+            if (vaultData.user) setUser(prev => ({ ...prev, ...vaultData.user }));
+          }
+        } catch {
+          const cachedNodes = await VaultDB.loadNodes();
+          if (cachedNodes && cachedNodes.length > 0) setNodes(cachedNodes);
+        }
+      }
+
+      await new Promise(r => setTimeout(r, 500));
       setEntranceState(prev => ({
         ...prev,
         progress: 80,
         decryptionLog: [...prev.decryptionLog, 'Verifying SHA-256 cloud node integrity... Clean [✓]']
       }));
 
-      await new Promise(r => setTimeout(r, 500));
+      await new Promise(r => setTimeout(r, 400));
       setEntranceState({ stage: 'warp', progress: 100, decryptionLog: [] });
 
       audioEngine.playWarpTransitionSound();
@@ -358,6 +379,8 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const logout = () => {
     setZkMasterKey(null);
+    setAccessToken(null);
+    localStorage.removeItem('vault_access_token');
     setSelectedNode(null);
     setSelectedPhoto(null);
     setEntranceState({ stage: 'auth', progress: 0, decryptionLog: [] });
@@ -450,7 +473,6 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     addAuditLog('PHOTO_UPLOAD', `Deleted memory node #${nodeId}`, 'WARNING');
   };
 
-  // High-Performance Multi-Resolution WebP Thumbnail Photo Upload Engine
   const uploadPhotosToNode = async (nodeId: string, files: File[]): Promise<void> => {
     const targetNode = nodes.find(n => n.id === nodeId);
     if (!targetNode) return;
@@ -458,7 +480,6 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const newBranches: PhotoBranch[] = [];
 
     for (const file of files) {
-      // 1. Generate Multi-Resolution WebP Thumbnails (256px, 512px, 1024px)
       const optimized = await ImageOptimizer.compressAndGenerateThumbnails(file);
 
       const tags = AIEngine.analyzeImageTags(file.name);
@@ -473,7 +494,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         filename: file.name,
         title: file.name.replace(/\.[^/.]+$/, '').replace(/_/g, ' '),
         url: optimized.dataUrl,
-        thumbnailUrl: optimized.thumb256, // Lightweight 256px WebP for 3D spoke badges
+        thumbnailUrl: optimized.thumb256,
         sizeBytes: optimized.sizeBytes,
         mimeType: 'image/webp',
         uploadedAt: new Date().toISOString(),
@@ -494,14 +515,11 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
       newBranches.push(branch);
 
-      // Enqueue background AI job on backend
       fetch('http://localhost:5000/api/v1/ai/enqueue', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ photoId: branch.id, filename: file.name })
-      }).catch(() => {
-        // AI enqueue fallback
-      });
+      }).catch(() => {});
     }
 
     setNodes(prev => prev.map(n => {
@@ -518,7 +536,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       return n;
     }));
 
-    addAuditLog('PHOTO_UPLOAD', `Uploaded ${files.length} WebP optimized photo(s) to node "${targetNode.title}"`);
+    addAuditLog('PHOTO_UPLOAD', `Uploaded ${files.length} WebP photo(s) to node "${targetNode.title}"`);
   };
 
   const deletePhotoFromNode = (nodeId: string, photoId: string) => {
@@ -602,6 +620,13 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const revokeSession = (sessionId: string) => {
     setSessions(prev => prev.filter(s => s.id !== sessionId));
+    if (accessToken) {
+      fetch('http://localhost:5000/api/v1/auth/revoke-session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId })
+      }).catch(() => {});
+    }
     addAuditLog('SESSION_REVOKED', `Remote session #${sessionId} revoked`, 'WARNING');
   };
 
@@ -621,6 +646,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         searchResults,
         targetCameraPosition,
         userMasterPassword,
+        accessToken,
         registerTenant,
         login,
         logout,
