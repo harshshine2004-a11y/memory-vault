@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { ThemeProvider } from './context/ThemeContext';
 import { VaultProvider, useVault } from './context/VaultContext';
+import { VaultErrorBoundary } from './components/VaultErrorBoundary';
 import { AuthCard } from './components/Auth/AuthCard';
 import { CinematicEntrance } from './components/Animation/CinematicEntrance';
 import { MemoryGraph3D } from './components/3D/MemoryGraph3D';
@@ -15,6 +16,7 @@ import { ProfileModal } from './components/Dashboard/ProfileModal';
 import { EditNodeModal } from './components/Dashboard/EditNodeModal';
 import { MobileContextMenu } from './components/Dashboard/MobileContextMenu';
 import { MobileBottomDock } from './components/Dashboard/MobileBottomDock';
+import { FPSMonitor } from './components/Dashboard/FPSMonitor';
 import { SlidersHorizontal, Sparkles, Edit3 } from 'lucide-react';
 import type { MemoryNode } from './types';
 
@@ -43,6 +45,7 @@ const MainVaultContent: React.FC = () => {
   return (
     <div className="relative w-screen h-screen overflow-hidden select-none safe-area-top safe-area-bottom">
       <CinematicEntrance />
+      <FPSMonitor />
 
       <div className="absolute inset-0 z-0">
         <MemoryGraph3D
@@ -140,10 +143,12 @@ const MainVaultContent: React.FC = () => {
 
 export default function App() {
   return (
-    <ThemeProvider>
-      <VaultProvider>
-        <MainVaultContent />
-      </VaultProvider>
-    </ThemeProvider>
+    <VaultErrorBoundary>
+      <ThemeProvider>
+        <VaultProvider>
+          <MainVaultContent />
+        </VaultProvider>
+      </ThemeProvider>
+    </VaultErrorBoundary>
   );
 }
