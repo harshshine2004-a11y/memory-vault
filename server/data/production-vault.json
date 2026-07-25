@@ -1,0 +1,216 @@
+{
+  "tenant-harshkumar": {
+    "nodes": [
+      {
+        "id": "node-1",
+        "title": "Kyoto Zen Gardens & Shrines",
+        "category": "Travel & Architecture",
+        "date": "2026-04-12",
+        "description": "Serene morning walk through bamboo groves and ancient wooden pagoda temples in Kyoto.",
+        "notes": "# Kyoto Exploration Notes\n\n- Visit Fushimi Inari shrine at sunrise\n- Matcha tea ceremony in Gion\n- Capture high resolution RAW photos of stone lanterns",
+        "checklists": [
+          {
+            "id": "c1",
+            "text": "Sunrise photo shoot at Arashiyama",
+            "completed": true
+          },
+          {
+            "id": "c2",
+            "text": "Backup memory cards to Cloud Vault",
+            "completed": true
+          },
+          {
+            "id": "c3",
+            "text": "Journal daily thoughts",
+            "completed": false
+          }
+        ],
+        "tags": [
+          "Japan",
+          "Architecture",
+          "Zen",
+          "Travel",
+          "Photography"
+        ],
+        "color": "#00ff88",
+        "iconName": "Compass",
+        "geometryShape": "crystal",
+        "position": [
+          -9,
+          3.5,
+          0
+        ],
+        "connectedTo": [
+          "node-2",
+          "node-3"
+        ],
+        "pinned": true,
+        "versionHistory": [
+          {
+            "timestamp": "2026-04-12 18:30",
+            "note": "Created memory node",
+            "author": "Vault Owner"
+          }
+        ],
+        "lastModified": "2026-07-25T16:47:46.930Z",
+        "branches": [],
+        "version": 3
+      },
+      {
+        "id": "node-2",
+        "title": "Northern Lights Over Iceland Fjords",
+        "category": "Celestial Expeditions",
+        "date": "2026-02-18",
+        "description": "Experiencing the green aurora borealis dancing across snow-capped peaks in Vik.",
+        "notes": "# Iceland Aurora Expedition\n\nTemperature: -12°C. Clear skies with solar storm index KP5.",
+        "checklists": [
+          {
+            "id": "c4",
+            "text": "Set camera tripods for long exposure",
+            "completed": true
+          },
+          {
+            "id": "c5",
+            "text": "Collect thermal gear",
+            "completed": true
+          }
+        ],
+        "tags": [
+          "Aurora",
+          "Iceland",
+          "NightSky",
+          "Winter",
+          "Cosmic"
+        ],
+        "color": "#00f0ff",
+        "iconName": "Sparkles",
+        "geometryShape": "icosahedron",
+        "position": [
+          9,
+          3,
+          -4
+        ],
+        "connectedTo": [
+          "node-1",
+          "node-4"
+        ],
+        "pinned": true,
+        "versionHistory": [
+          {
+            "timestamp": "2026-02-18 22:10",
+            "note": "Added initial aurora RAW captures",
+            "author": "Vault Owner"
+          }
+        ],
+        "lastModified": "2026-07-25T16:47:46.930Z",
+        "branches": [],
+        "version": 3
+      },
+      {
+        "id": "node-3",
+        "title": "Architectural Design Summit 2026",
+        "category": "Innovation & Art",
+        "date": "2026-05-30",
+        "description": "Keynotes on sustainable futuristic skyscrapers, glassmorphism UI, and 3D WebGL interfaces.",
+        "notes": "# Design Summit Takeaways\n\n- Micro-animations increase engagement by 40%\n- 3D Physics graphs make data exploration intuitive\n- Zero-knowledge encryption builds ultimate user trust",
+        "checklists": [
+          {
+            "id": "c6",
+            "text": "Present Memory Vault prototype",
+            "completed": true
+          },
+          {
+            "id": "c7",
+            "text": "Network with Awwwards judges",
+            "completed": true
+          }
+        ],
+        "tags": [
+          "Design",
+          "WebGL",
+          "Architecture",
+          "Keynote",
+          "Technology"
+        ],
+        "color": "#ffb700",
+        "iconName": "Layers",
+        "geometryShape": "torus",
+        "position": [
+          0,
+          -5.5,
+          6
+        ],
+        "connectedTo": [
+          "node-1"
+        ],
+        "pinned": false,
+        "versionHistory": [
+          {
+            "timestamp": "2026-05-30 14:00",
+            "note": "Created design summit memory node",
+            "author": "Vault Owner"
+          }
+        ],
+        "lastModified": "2026-07-25T16:47:46.930Z",
+        "branches": [],
+        "version": 3
+      },
+      {
+        "id": "node-4",
+        "title": "Starlight Observatory & Deep Space",
+        "category": "Astronomy",
+        "date": "2026-07-04",
+        "description": "Stargazing session capturing distant nebulae and Milky Way core.",
+        "notes": "Exposure specs: 20x 30s stacks with hydrogen-alpha filter.",
+        "checklists": [
+          {
+            "id": "c8",
+            "text": "Stack light frames",
+            "completed": true
+          }
+        ],
+        "tags": [
+          "Space",
+          "Nebula",
+          "Stars",
+          "Cosmic",
+          "NightSky"
+        ],
+        "color": "#ff0055",
+        "iconName": "Globe",
+        "geometryShape": "octahedron",
+        "position": [
+          -7,
+          -4.5,
+          -5
+        ],
+        "connectedTo": [
+          "node-2"
+        ],
+        "pinned": false,
+        "versionHistory": [
+          {
+            "timestamp": "2026-07-04 01:00",
+            "note": "Created astronomical log",
+            "author": "Vault Owner"
+          }
+        ],
+        "lastModified": "2026-07-25T16:47:46.930Z",
+        "branches": [],
+        "version": 3
+      }
+    ],
+    "user": {
+      "username": "Harsh Kumar",
+      "email": "harsh@antigravity.ai",
+      "avatarUrl": "https://api.dicebear.com/7.x/bottts/svg?seed=Admin1",
+      "storageQuotaBytes": 26843545600,
+      "storageUsedBytes": 0,
+      "twoFactorEnabled": true,
+      "biometricEnabled": true,
+      "zkEncryptionEnabled": true,
+      "createdAt": "2026-01-01T00:00:00Z"
+    },
+    "lastSyncedAt": "2026-07-25T16:47:46.930Z"
+  }
+}
