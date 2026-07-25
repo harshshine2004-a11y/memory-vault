@@ -5,6 +5,8 @@ import { AIEngine } from '../utils/ai';
 import { PWAEngine } from '../utils/pwa';
 import { socketManager } from '../utils/socket';
 import { audioEngine } from '../utils/audio';
+import { VaultDB } from '../utils/db';
+import { ImageOptimizer } from '../utils/imageOptimizer';
 
 interface VaultContextType {
   nodes: MemoryNode[];
@@ -21,7 +23,7 @@ interface VaultContextType {
   targetCameraPosition: [number, number, number] | null;
   userMasterPassword: string;
   
-  // Actions
+  // Multi-Tenant & Vault Actions
   registerTenant: (username: string, email: string, password: string, tier?: 'starter' | 'pro' | 'enterprise') => boolean;
   login: (password: string) => Promise<boolean>;
   logout: () => void;
@@ -201,15 +203,31 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   ]);
 
+  // Load Primary Backend REST DB Vault Data on Launch with IndexedDB Fallback
   useEffect(() => {
-    const handleOnline = () => {
-      setIsOffline(false);
-      PWAEngine.getAndClearOfflineQueue().then(queue => {
-        if (queue.length > 0) {
-          addAuditLog('PHOTO_UPLOAD', `Synced ${queue.length} offline queued memories to cloud storage`, 'SUCCESS');
+    const fetchVaultData = async () => {
+      try {
+        const response = await fetch('http://localhost:5000/api/v1/vault/data');
+        if (response.ok) {
+          const data = await response.json();
+          if (data.nodes && Array.isArray(data.nodes) && data.nodes.length > 0) {
+            setNodes(data.nodes);
+            VaultDB.saveNodes(data.nodes);
+          } else {
+            const cachedNodes = await VaultDB.loadNodes();
+            if (cachedNodes && cachedNodes.length > 0) setNodes(cachedNodes);
+          }
+          if (data.user) setUser(prev => ({ ...prev, ...data.user }));
         }
-      });
+      } catch {
+        const cachedNodes = await VaultDB.loadNodes();
+        if (cachedNodes && cachedNodes.length > 0) setNodes(cachedNodes);
+      }
     };
+
+    fetchVaultData();
+
+    const handleOnline = () => setIsOffline(false);
     const handleOffline = () => setIsOffline(true);
 
     window.addEventListener('online', handleOnline);
@@ -223,9 +241,19 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     };
   }, []);
 
+  // Sync Node changes to Primary Backend REST DB & IndexedDB Cache
   useEffect(() => {
+    VaultDB.saveNodes(nodes);
     PWAEngine.cacheVaultOffline(nodes);
-  }, [nodes]);
+
+    fetch('http://localhost:5000/api/v1/vault/sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ nodes, user })
+    }).catch(() => {
+      // Sync fallback
+    });
+  }, [nodes, user]);
 
   const updateUserProfile = (updates: Partial<UserProfile>) => {
     setUser(prev => {
@@ -422,6 +450,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     addAuditLog('PHOTO_UPLOAD', `Deleted memory node #${nodeId}`, 'WARNING');
   };
 
+  // High-Performance Multi-Resolution WebP Thumbnail Photo Upload Engine
   const uploadPhotosToNode = async (nodeId: string, files: File[]): Promise<void> => {
     const targetNode = nodes.find(n => n.id === nodeId);
     if (!targetNode) return;
@@ -429,23 +458,24 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const newBranches: PhotoBranch[] = [];
 
     for (const file of files) {
+      // 1. Generate Multi-Resolution WebP Thumbnails (256px, 512px, 1024px)
+      const optimized = await ImageOptimizer.compressAndGenerateThumbnails(file);
+
       const tags = AIEngine.analyzeImageTags(file.name);
       const ocrText = AIEngine.extractOCRText(file.name);
       const caption = AIEngine.generateCaption(file.name, tags);
       const pHash = AIEngine.generatePHash(file.name, file.size);
       const hash = await SecurityEngine.hashData(file.name + file.size);
 
-      const objectUrl = URL.createObjectURL(file);
-
       const branch: PhotoBranch = {
         id: `photo-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
         nodeId,
         filename: file.name,
         title: file.name.replace(/\.[^/.]+$/, '').replace(/_/g, ' '),
-        url: objectUrl,
-        thumbnailUrl: objectUrl,
-        sizeBytes: file.size,
-        mimeType: file.type || 'image/jpeg',
+        url: optimized.dataUrl,
+        thumbnailUrl: optimized.thumb256, // Lightweight 256px WebP for 3D spoke badges
+        sizeBytes: optimized.sizeBytes,
+        mimeType: 'image/webp',
         uploadedAt: new Date().toISOString(),
         encryptedHash: hash,
         aesKeyId: `aes-key-${Date.now()}`,
@@ -458,22 +488,27 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           camera: 'Cloud Encrypted Asset',
           location: 'Memory Vault Storage',
           dateTaken: new Date().toLocaleString(),
-          dimensions: 'Original Resolution'
+          dimensions: `${optimized.width}x${optimized.height}`
         }
       };
 
       newBranches.push(branch);
 
-      if (isOffline) {
-        await PWAEngine.queueOfflineUpload({ nodeId, filename: file.name, size: file.size });
-      }
+      // Enqueue background AI job on backend
+      fetch('http://localhost:5000/api/v1/ai/enqueue', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ photoId: branch.id, filename: file.name })
+      }).catch(() => {
+        // AI enqueue fallback
+      });
     }
 
     setNodes(prev => prev.map(n => {
       if (n.id === nodeId) {
         const updated = {
           ...n,
-          coverPhotoUrl: n.coverPhotoUrl || (newBranches[0] ? newBranches[0].url : undefined),
+          coverPhotoUrl: n.coverPhotoUrl || (newBranches[0] ? newBranches[0].thumbnailUrl : undefined),
           branches: [...newBranches, ...n.branches],
           lastModified: new Date().toISOString()
         };
@@ -483,7 +518,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       return n;
     }));
 
-    addAuditLog('PHOTO_UPLOAD', `Uploaded ${files.length} encrypted photo(s) to node "${targetNode.title}"`);
+    addAuditLog('PHOTO_UPLOAD', `Uploaded ${files.length} WebP optimized photo(s) to node "${targetNode.title}"`);
   };
 
   const deletePhotoFromNode = (nodeId: string, photoId: string) => {
@@ -493,7 +528,7 @@ export const VaultProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         const updated = {
           ...n,
           branches: updatedBranches,
-          coverPhotoUrl: updatedBranches[0] ? updatedBranches[0].url : undefined
+          coverPhotoUrl: updatedBranches[0] ? updatedBranches[0].thumbnailUrl : undefined
         };
         if (selectedNode?.id === nodeId) setSelectedNode(updated);
         return updated;
