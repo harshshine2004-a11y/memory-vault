@@ -1,10 +1,10 @@
 import React, { useState, useRef } from 'react';
-import { Key, Download, CheckCircle, AlertCircle, X, HardDrive, Camera, User, Sparkles } from 'lucide-react';
+import { Key, Download, CheckCircle, AlertCircle, X, HardDrive, Camera, User, Sparkles, LogOut } from 'lucide-react';
 import { useVault } from '../../context/VaultContext';
 import { SecurityEngine } from '../../utils/security';
 
 export const ProfileModal: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ isOpen, onClose }) => {
-  const { user, nodes, userMasterPassword, updateMasterPassword, updateUserProfile, exportVaultBackup, addAuditLog } = useVault();
+  const { user, nodes, userMasterPassword, updateMasterPassword, updateUserProfile, exportVaultBackup, addAuditLog, logout } = useVault();
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -319,6 +319,21 @@ export const ProfileModal: React.FC<{ isOpen: boolean; onClose: () => void }> = 
           >
             <Download className="w-4 h-4" />
             {isExportingZip ? 'Preparing Emergency Local Backup...' : 'Download All Photos to Local Device'}
+          </button>
+        </div>
+
+        {/* Section: Prominent Logout Action Button */}
+        <div className="pt-2">
+          <button
+            type="button"
+            onClick={() => {
+              logout();
+              onClose();
+            }}
+            className="w-full py-3 rounded-2xl bg-rose-500/20 border border-rose-500/40 hover:bg-rose-600 text-rose-300 hover:text-white font-bold text-xs flex items-center justify-center gap-2 shadow-lg transition-all active:scale-95"
+          >
+            <LogOut className="w-4 h-4" />
+            <span>Logout & Lock Private Vault</span>
           </button>
         </div>
       </div>

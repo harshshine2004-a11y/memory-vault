@@ -23,21 +23,22 @@ export const HeaderNav: React.FC<{
   };
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-30 px-6 py-4 flex items-center justify-between pointer-events-none">
-      <div className="flex items-center gap-3 pointer-events-auto">
-        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500 to-purple-600 p-0.5 shadow-lg shadow-cyan-500/20">
+    <header className="fixed top-0 left-0 right-0 z-30 px-3 sm:px-6 py-3 sm:py-4 flex items-center justify-between pointer-events-none gap-2">
+      {/* Brand Logo & Title */}
+      <div className="flex items-center gap-2.5 sm:gap-3 pointer-events-auto shrink-0">
+        <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br from-cyan-500 to-purple-600 p-0.5 shadow-lg shadow-cyan-500/20">
           <div className="w-full h-full rounded-[10px] bg-slate-950 flex items-center justify-center">
-            <Shield className="w-5 h-5 text-cyan-400" />
+            <Shield className="w-4 h-4 sm:w-5 sm:h-5 text-cyan-400" />
           </div>
         </div>
         <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-base font-extrabold tracking-tight text-white font-sans">MEMORY VAULT</h1>
-            <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            <h1 className="text-sm sm:text-base font-extrabold tracking-tight text-white font-sans">MEMORY VAULT</h1>
+            <span className="hidden sm:inline-block text-[10px] font-mono px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
               SaaS Multi-Tenant
             </span>
           </div>
-          <p className="text-[11px] text-slate-400 font-mono flex items-center gap-1.5">
+          <p className="text-[10px] sm:text-[11px] text-slate-400 font-mono flex items-center gap-1.5">
             {isOffline ? (
               <span className="text-amber-400 flex items-center gap-1">
                 <WifiOff className="w-3 h-3" /> Offline PWA Mode
@@ -51,40 +52,40 @@ export const HeaderNav: React.FC<{
         </div>
       </div>
 
-      <div className="flex items-center gap-2 pointer-events-auto">
+      {/* Adaptive Touch Horizontally Scrollable Header Controls Container */}
+      <div className="pointer-events-auto flex items-center gap-2 overflow-x-auto no-scrollbar scroll-smooth whitespace-nowrap py-1 max-w-full">
         <button
           onClick={onOpenSearch}
-          className="flex items-center gap-3 px-4 py-2 rounded-2xl bg-slate-950/70 border border-white/10 hover:border-cyan-500/50 text-slate-300 hover:text-white text-xs backdrop-blur-xl shadow-lg transition-all"
+          className="flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2 rounded-2xl bg-slate-950/80 border border-white/10 hover:border-cyan-500/50 text-slate-300 hover:text-white text-xs backdrop-blur-xl shadow-lg transition-all shrink-0"
         >
           <Search className="w-4 h-4 text-cyan-400" />
-          <span>Semantic AI & OCR Search...</span>
-          <kbd className="px-1.5 py-0.5 rounded bg-slate-800 text-[10px] font-mono text-slate-400 border border-white/10">
+          <span className="hidden sm:inline">Semantic AI & OCR Search...</span>
+          <span className="sm:hidden">Search</span>
+          <kbd className="hidden sm:inline-block px-1.5 py-0.5 rounded bg-slate-800 text-[10px] font-mono text-slate-400 border border-white/10">
             Ctrl+K
           </kbd>
         </button>
 
         <button
           onClick={onOpenCreateNode}
-          className="flex items-center gap-1.5 px-3.5 py-2 rounded-2xl bg-slate-900/80 border border-white/10 hover:border-purple-500/50 text-slate-200 hover:text-white text-xs font-semibold backdrop-blur-xl transition-all"
+          className="flex items-center gap-1.5 px-3 sm:px-3.5 py-2 rounded-2xl bg-slate-900/80 border border-white/10 hover:border-purple-500/50 text-slate-200 hover:text-white text-xs font-semibold backdrop-blur-xl transition-all shrink-0"
         >
           <Plus className="w-4 h-4 text-purple-400" />
-          <span>New Node</span>
+          <span className="hidden sm:inline">New Node</span>
         </button>
 
         <button
           onClick={onOpenUpload}
-          className="flex items-center gap-1.5 px-4 py-2 rounded-2xl bg-gradient-to-r from-cyan-500 to-purple-600 text-white font-semibold text-xs shadow-lg shadow-cyan-500/20 hover:opacity-95 hover:scale-105 transition-all"
+          className="flex items-center gap-1.5 px-3.5 sm:px-4 py-2 rounded-2xl bg-gradient-to-r from-cyan-500 to-purple-600 text-white font-semibold text-xs shadow-lg shadow-cyan-500/20 hover:opacity-95 hover:scale-105 transition-all shrink-0"
         >
           <Upload className="w-4 h-4" />
-          <span>Upload Asset</span>
+          <span>Upload</span>
         </button>
-      </div>
 
-      <div className="flex items-center gap-3 pointer-events-auto relative">
-        {/* Procedural 3D Audio Ambient Sound Mute/Unmute Toggle Button */}
+        {/* Audio Ambient Sound Toggle */}
         <button
           onClick={handleAudioToggle}
-          className={`p-2.5 rounded-2xl border text-xs backdrop-blur-xl transition-all ${
+          className={`p-2 sm:p-2.5 rounded-2xl border text-xs backdrop-blur-xl transition-all shrink-0 ${
             !isAudioMuted
               ? 'bg-cyan-500/20 border-cyan-400 text-cyan-300 shadow-[0_0_15px_rgba(0,240,255,0.4)] animate-pulse'
               : 'bg-slate-950/70 border-white/10 text-slate-400 hover:text-white'
@@ -94,11 +95,11 @@ export const HeaderNav: React.FC<{
           {!isAudioMuted ? <Volume2 className="w-4 h-4 text-cyan-400" /> : <VolumeX className="w-4 h-4" />}
         </button>
 
-        {/* 3D Living Environment Theme Selector */}
-        <div className="relative">
+        {/* Theme World Selector */}
+        <div className="relative shrink-0">
           <button
             onClick={() => setShowThemeMenu(!showThemeMenu)}
-            className="flex items-center gap-2 px-3.5 py-2 rounded-2xl bg-slate-950/70 border border-white/10 hover:border-cyan-400 text-slate-200 text-xs backdrop-blur-xl transition-all"
+            className="flex items-center gap-2 px-3 sm:px-3.5 py-2 rounded-2xl bg-slate-950/70 border border-white/10 hover:border-cyan-400 text-slate-200 text-xs backdrop-blur-xl transition-all"
           >
             <Palette className="w-4 h-4 text-cyan-400" />
             <span className="hidden md:inline font-medium">{currentTheme.name}</span>
@@ -133,13 +134,13 @@ export const HeaderNav: React.FC<{
 
         <button
           onClick={onOpenSettings}
-          className="p-2.5 rounded-2xl bg-slate-950/70 border border-white/10 hover:border-cyan-400 text-slate-300 hover:text-white backdrop-blur-xl transition-all"
+          className="p-2 sm:p-2.5 rounded-2xl bg-slate-950/70 border border-white/10 hover:border-cyan-400 text-slate-300 hover:text-white backdrop-blur-xl transition-all shrink-0"
           title="Vault Settings"
         >
           <Settings className="w-4 h-4" />
         </button>
 
-        <div className="flex items-center gap-2 pl-2 border-l border-white/10">
+        <div className="flex items-center gap-1.5 sm:gap-2 pl-2 border-l border-white/10 shrink-0">
           <button
             onClick={onOpenProfile}
             className="flex items-center gap-2 p-1 rounded-2xl hover:bg-white/10 transition-all border border-transparent hover:border-cyan-400/40"
@@ -153,8 +154,8 @@ export const HeaderNav: React.FC<{
           </button>
           <button
             onClick={logout}
-            title="Logout"
-            className="p-2 rounded-xl text-slate-400 hover:text-rose-400 transition-colors"
+            title="Logout & Lock Vault"
+            className="p-2 rounded-xl text-slate-400 hover:text-rose-400 hover:bg-rose-500/20 transition-all"
           >
             <LogOut className="w-4 h-4" />
           </button>
